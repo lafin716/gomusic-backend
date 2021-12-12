@@ -22,8 +22,16 @@ type Handler struct {
 	db dblayer.DBLayer
 }
 
-func NewHandler() (*Handler, error) {
-	return new(Handler), nil
+func NewHandler(db, constring string) (HandlerInterface, error) {
+
+	database, err := dblayer.NewORM(db, constring)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Handler{
+		db: database,
+	}, nil
 }
 
 func (h *Handler) GetProducts(c *gin.Context) {
@@ -33,7 +41,7 @@ func (h *Handler) GetProducts(c *gin.Context) {
 
 	products, err := h.db.GetAllProducts()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, products)
@@ -46,7 +54,7 @@ func (h *Handler) GetPromos(c *gin.Context) {
 
 	products, err := h.db.GetPromos()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, products)
@@ -60,13 +68,18 @@ func (h *Handler) SignIn(c *gin.Context) {
 	var customer models.Customer
 	err := c.ShouldBindJSON(&customer)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	customer, err = h.db.SignInUser(customer.Email, customer.Pass)
 	if err != nil {
+		if err == dblayer.ErrINVALIDPASSWORD {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, customer)
 }
@@ -85,7 +98,7 @@ func (h *Handler) AddUser(c *gin.Context) {
 
 	customer, err = h.db.AddUser(customer)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -100,13 +113,13 @@ func (h *Handler) SignOut(c *gin.Context) {
 	p := c.Param("id")
 	id, err := strconv.Atoi(p)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	err = h.db.SignOutUserById(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 }
@@ -119,13 +132,13 @@ func (h *Handler) GetOrders(c *gin.Context) {
 	p := c.Param("id")
 	id, err := strconv.Atoi(p)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	orders, err := h.db.GetCustomerOrdersByID(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error" : err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -134,6 +147,7 @@ func (h *Handler) GetOrders(c *gin.Context) {
 
 func (h *Handler) Charge(c *gin.Context) {
 	if h.db == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "server database error"})
 		return
 	}
 }

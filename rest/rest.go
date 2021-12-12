@@ -1,6 +1,8 @@
 package rest
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+)
 
 func RunApiWithHandler(address string, h HandlerInterface) error {
 	r := gin.Default()
@@ -28,7 +30,8 @@ func RunApiWithHandler(address string, h HandlerInterface) error {
 }
 
 func RunApi(address string) error {
-	h, err := NewHandler()
+	dsn := "root:password@tcp(127.0.0.1:3306)/gomusic?charset=utf8mb4&parseTime=True&loc=Local"
+	h, err := NewHandler("mysql", dsn)
 	if err != nil {
 		return err
 	}
